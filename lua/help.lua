@@ -33,6 +33,22 @@ function M.map(list, fn)
     return result
 end
 
+function M.split_string(str)
+    local list = {}
+    for token in string.gmatch(str, "[^%s]+") do
+        table.insert(list, token)
+    end
+    return list
+end
+
+function M.read_lists_same_line(name)
+    local list = {}
+    for line in io.lines(name) do
+        table.insert(list, M.split_string(line))
+    end
+    return list
+end
+
 function M.read_nested_lists(name)
     local list = {}
     local nested_list = {}
