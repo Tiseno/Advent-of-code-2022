@@ -32,13 +32,54 @@ local function match_score(match)
     return score
 end
 
-local function total_score(lists)
+local function total_score(matches)
     local score_sum = 0
-    for _, match in ipairs(lists) do
+    for _, match in ipairs(matches) do
         score_sum = score_sum + match_score(match)
     end
     return score_sum
 end
 
+local loss = "X"
+local draw = "Y"
+local win = "Z"
+
+local function transform_result_to_choice(matches)
+    local transformed_matches = {}
+    for _, match in ipairs(matches) do
+        local new_match = {match[1]}
+        if match[2] == loss then
+            if match[1] == rock1 then
+                table.insert(new_match, scissor2)
+            elseif match[1] == paper1 then
+                table.insert(new_match, rock2)
+            else
+                table.insert(new_match, paper2)
+            end
+        elseif match[2] == draw then
+            if match[1] == rock1 then
+                table.insert(new_match, rock2)
+            elseif match[1] == paper1 then
+                table.insert(new_match, paper2)
+            else
+                table.insert(new_match, scissor2)
+            end
+        else -- win
+            if match[1] == rock1 then
+                table.insert(new_match, paper2)
+            elseif match[1] == paper1 then
+                table.insert(new_match, scissor2)
+            else
+                table.insert(new_match, rock2)
+            end
+        end
+        table.insert(transformed_matches, new_match)
+    end
+    return transformed_matches
+end
+
 lh.P(total_score(lh.read_lists_same_line("input.txt")))
+
+lh.P(total_score(
+         transform_result_to_choice(lh.read_lists_same_line("input.txt"))))
 
