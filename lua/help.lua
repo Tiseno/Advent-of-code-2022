@@ -13,11 +13,9 @@ function M.P(any, sameline)
             end
             io.write('}')
         else
-            io.write(any)
+            io.write(tostring(any))
         end
-        if not sameline then
-            print()
-        end
+        if not sameline then print() end
     end
 end
 
@@ -27,25 +25,36 @@ function M.sum(list)
     return s
 end
 
-function M.map(list, fn)
+function M.map(fn, list)
     local result = {}
-    for _, e in ipairs(list) do table.insert(result, fn(e)) end
+    for _, e in ipairs(list) do
+        local r = fn(e)
+        table.insert(result, r)
+    end
     return result
 end
 
 function M.split_string(str)
     local list = {}
-    for token in string.gmatch(str, "[^%s]+") do
-        table.insert(list, token)
-    end
+    for token in string.gmatch(str, "[^%s]+") do table.insert(list, token) end
+    return list
+end
+
+function M.string_to_set(str)
+    local set = {}
+    for i = 1, #str do set[str:sub(i, i)] = true end
+    return set
+end
+
+function M.string_to_list(str)
+    local list = {}
+    for i = 1, #str do table.insert(list, str:sub(i, i)) end
     return list
 end
 
 function M.read_lists_same_line(name)
     local list = {}
-    for line in io.lines(name) do
-        table.insert(list, M.split_string(line))
-    end
+    for line in io.lines(name) do table.insert(list, M.split_string(line)) end
     return list
 end
 
