@@ -1,2 +1,5 @@
 .luarc.json
+**/*.hi
+**/*.o
+**/*.out
 
