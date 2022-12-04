@@ -86,14 +86,30 @@ function M.read_nested_lists(name)
     return list
 end
 
-function M.contains(A, B)
+-- If A is a superset of B
+function M.is_superset(A, B)
     for k in pairs(B) do if A[k] == nil then return false end end
     return true
+end
+
+-- If A is a subset of B
+function M.is_subset(A, B) return M.is_superset(B, A) end
+
+function M.intersection(A, B)
+    local set = {}
+    for k in pairs(A) do if B[k] ~= nil then set[k] = true end end
+    return set
 end
 
 function M.count(fn, list)
     local sum = 0
     for _, e in ipairs(list) do if fn(e) then sum = sum + 1 end end
+    return sum
+end
+
+function M.keys_in_table(t)
+    local sum = 0
+    for _ in pairs(t) do sum = sum + 1 end
     return sum
 end
 
