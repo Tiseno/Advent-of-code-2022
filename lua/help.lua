@@ -34,9 +34,16 @@ function M.map(fn, list)
     return result
 end
 
-function M.split_string(str)
+function M.split_string_sep(separator)
+    return function(str) return M.split_string(str, separator) end
+end
+
+function M.split_string(str, separator)
+    if separator == nil then separator = "%s" end
     local list = {}
-    for token in string.gmatch(str, "[^%s]+") do table.insert(list, token) end
+    for token in string.gmatch(str, "[^" .. separator .. "]+") do
+        table.insert(list, token)
+    end
     return list
 end
 
@@ -49,6 +56,12 @@ end
 function M.string_to_list(str)
     local list = {}
     for i = 1, #str do table.insert(list, str:sub(i, i)) end
+    return list
+end
+
+function M.read_list(name)
+    local list = {}
+    for line in io.lines(name) do table.insert(list, line) end
     return list
 end
 
@@ -71,6 +84,17 @@ function M.read_nested_lists(name)
         end
     end
     return list
+end
+
+function M.contains(A, B)
+    for k in pairs(B) do if A[k] == nil then return false end end
+    return true
+end
+
+function M.count(fn, list)
+    local sum = 0
+    for _, e in ipairs(list) do if fn(e) then sum = sum + 1 end end
+    return sum
 end
 
 return M
