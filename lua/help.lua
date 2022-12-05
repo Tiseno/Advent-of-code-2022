@@ -34,6 +34,12 @@ function M.map(fn, list)
     return result
 end
 
+function M.split_string_chunks(size, str)
+    local result = {}
+    for i = 1, #str, size do result[#result + 1] = str:sub(i, i + size - 1) end
+    return result
+end
+
 function M.split_string_sep(separator)
     return function(str) return M.split_string(str, separator) end
 end
