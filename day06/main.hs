@@ -1,12 +1,24 @@
-slidingR :: Int -> String -> String -> Int
-slidingR i [] _ = i
-slidingR i (x:xs) [_,b,c,d] = if b /= c && b /= d && b /= x && c /= d && c /= x && d /= x then i else slidingR (i+1) xs [b,c,d,x]
-slidingR i (x:xs) window = slidingR (i+1) xs (window ++ [x])
+hasDoubles :: String -> Bool
+hasDoubles [] = False
+hasDoubles (x:xs) = elem x xs || hasDoubles xs
 
-sliding s = slidingR 1 s []
+slidingR :: Int -> Int -> String -> String -> Int
+slidingR windowSize i [] _ = 0
+slidingR windowSize i (x:xs) window =
+        if length (window ++ [x]) < windowSize
+        then slidingR windowSize (i+1) xs (window ++ [x])
+        else
+            if hasDoubles (window ++ [x])
+            then slidingR windowSize (i+1) xs (tail window ++ [x])
+            else i
+
+solution1 s = slidingR 4 1 s []
+solution2 s = slidingR 14 1 s []
 
 main = do
     input <- fmap lines (readFile "input2.txt")
     print [7, 5, 6, 10, 11]
-    print $ fmap sliding input
+    print $ fmap solution1 input
+    print [19, 23, 23, 29, 26]
+    print $ fmap solution2 input
 
