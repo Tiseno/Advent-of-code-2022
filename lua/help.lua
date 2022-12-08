@@ -65,6 +65,12 @@ function M.string_to_list(str)
     return list
 end
 
+function M.string_to_number_list(str)
+    local list = {}
+    for i = 1, #str do table.insert(list, tonumber(str:sub(i, i))) end
+    return list
+end
+
 function M.read_list(name)
     local list = {}
     for line in io.lines(name) do table.insert(list, line) end
