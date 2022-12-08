@@ -98,6 +98,14 @@ function M.read_nested_lists(name)
     return list
 end
 
+function M.read_number_matrix(name)
+    local grid = {}
+    for line in io.lines(name) do
+        table.insert(grid, M.string_to_number_list(line))
+    end
+    return grid
+end
+
 -- If A is a superset of B
 function M.is_superset(A, B)
     for k in pairs(B) do if A[k] == nil then return false end end
