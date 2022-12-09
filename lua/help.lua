@@ -133,4 +133,10 @@ function M.keys_in_table(t)
     return sum
 end
 
+function M.create_list(length, element)
+    local list = {}
+    for _ = 1, length do table.insert(list, element) end
+    return list
+end
+
 return M
