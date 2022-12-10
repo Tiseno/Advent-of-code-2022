@@ -5,34 +5,40 @@ data Instruction = Noop | Addx Int
 
 parseInstruction :: String -> Instruction
 parseInstruction "noop" = Noop
-parseInstruction instr = Addx (read (last (words instr)))
+parseInstruction instr = Addx $ read $ last $ words instr
 
 executionTime :: Instruction -> Int
 executionTime (Addx _) = 1
 executionTime Noop = 0
 
-runInstruction register Noop = register
-runInstruction register (Addx i) = register + i
+runInstruction Noop register = register
+runInstruction (Addx i) register = register + i
 
 drawPixel image x = let drawX = length image `mod` 40 in image ++ [if x < drawX + 2 && x > drawX - 2 then '#' else ' ']
 
-runCycles :: Int -> Maybe (Int, Instruction) -> (String, Int, Int) -> [Instruction] -> (String, Int, Int)
-runCycles 0 _ (s, d, x) _ = (s, d, x)
-runCycles _ Nothing (s, d, x) [] = (s, d, x)
-runCycles counter Nothing (s, d, x) (instruction:instructions) = runCycles counter (Just (executionTime instruction, instruction)) (s, d, x) instructions
-runCycles counter (Just (0, instruction)) (s, _, x) instructions =
-  runCycles (counter - 1) Nothing (drawPixel s x, x, runInstruction x instruction) instructions
-runCycles counter (Just (ic, instruction)) (s, _, x) instructions =
-  runCycles (counter - 1) (Just (ic - 1, instruction)) (drawPixel s x, x, x) instructions
+type Counter = Int
+type Image = String
+type Register = Int
+type CpuState = (Counter, Instruction, [Instruction])
+type CRTState = (Image, Register)
 
-fst3 (a, _, _) = a
-snd3 (_, a, _) = a
+runCycles :: Counter -> CRTState -> CpuState -> CRTState
+runCycles 0 state (_, _, _) = state
+runCycles _ state (_, _, [])  = state
+runCycles c (image, x) (0, instr, instructions)  =
+  let (next:remaining) = if null instructions then [Noop] else instructions in
+  let result = runInstruction instr x in
+  runCycles (c - 1) (drawPixel image result, result) (executionTime next, next, remaining)
+runCycles c (image, x) (ic, instr, instructions)  =
+  runCycles (c - 1) (drawPixel image x, x) (ic - 1, instr, instructions)
 
-signalStrengthAtCycle instructions n = (*n) $ snd3 (runCycles n Nothing ("", 1, 1) instructions)
+xAtCycle instructions n = snd $ runCycles n ("", 1) (0, Noop, instructions)
+
+signalStrengthAtCycle instructions n = (*n) $ snd (runCycles n ("", 1) (0, Noop, instructions))
 
 sumOfSixSignalStrengths instructions = sum $ fmap (signalStrengthAtCycle instructions) [20, 60, 100, 140, 180, 220]
 
-createImage instructions = fst3 (runCycles 300 Nothing ("", 1, 1) instructions)
+createImage instructions = fst $ runCycles (-1) ("", 1) (0, Noop, instructions)
 
 chunksOf _ [] = []
 chunksOf n xs = let (ys, zs) = splitAt n xs in ys : chunksOf n zs
@@ -40,6 +46,8 @@ chunksOf n xs = let (ys, zs) = splitAt n xs in ys : chunksOf n zs
 drawImage image = mapM_ putStrLn (chunksOf 40 image)
 
 main = do
+  instructions_e2 <- fmap (fmap parseInstruction . lines) (readFile "input_e2.txt")
+  print $ sumOfSixSignalStrengths instructions_e2
   instructions <- fmap (fmap parseInstruction . lines) (readFile "input.txt")
   print $ sumOfSixSignalStrengths instructions
   drawImage $ createImage instructions
