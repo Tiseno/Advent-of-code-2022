@@ -14,6 +14,7 @@ data Test = Divisible {
   target1 :: Id,
   target2 :: Id
   } deriving Show
+
 type Item = Integer
 
 data Monkey = Monkey {
@@ -26,7 +27,7 @@ data Monkey = Monkey {
 
 parseId s = read (init s) :: Integer
 
-parseItems :: String -> [Integer]
+parseItems :: String -> [Item]
 parseItems s = read ("["++drop 16 s++"]") :: [Integer]
 
 parseOperation :: String -> Operation
@@ -66,8 +67,6 @@ inspect item Double = item + item
 inspect item (Add i) = item + i
 inspect item (Mul f) = item * f
 
-calmDown calmFactor item = item `div` calmFactor
-
 acquireTarget :: Item -> Test -> Id
 acquireTarget item (Divisible divisibleBy target1 target2) = if item `mod` divisibleBy == 0 then target1 else target2
 
@@ -77,37 +76,46 @@ updateMonkey monkey ms = Map.insert (monkeyId monkey) monkey ms
 throwItem :: Item -> Id -> MonkeyState -> MonkeyState
 throwItem item targetId ms = let target = ms Map.! targetId in updateMonkey (target{ items = items target ++ [item] }) ms
 
-inspectAndThrow :: Integer -> Monkey -> MonkeyState -> Item -> MonkeyState
-inspectAndThrow calmFactor m ms item =
-  let inspected = calmDown calmFactor $ inspect item (operation m) in
+inspectAndThrow :: (Item -> Item) -> (Item -> Item) -> Monkey -> MonkeyState -> Item -> MonkeyState
+inspectAndThrow afterInspect beforeThrow m ms item =
+  let inspected = afterInspect $ inspect item (operation m) in
   let targetId = acquireTarget inspected (test m) in
-  throwItem inspected targetId ms
+  let modified = beforeThrow inspected in
+  throwItem modified targetId ms
 
-turn :: Integer -> MonkeyState -> Id -> MonkeyState
-turn calmFactor ms id =
+turn :: (Item -> Item) -> (Item -> Item) -> MonkeyState -> Id -> MonkeyState
+turn afterInspect beforeThrow ms id =
   let monkey = ms Map.! id in
-  let updatedState = foldl (inspectAndThrow calmFactor monkey) ms (items monkey) in
+  let updatedState = foldl (inspectAndThrow beforeThrow afterInspect monkey) ms (items monkey) in
   updateMonkey monkey{ items = [], inspections = inspections monkey + toInteger (length (items monkey)) } updatedState
 
-oneRound :: MonkeyState -> Integer -> MonkeyState
-oneRound ms calmFactor = foldl (turn calmFactor) ms (take (length ms) $ iterate (+1) 0 :: [Integer])
+oneRound :: (Item -> Item) -> (Item -> Item) -> MonkeyState -> MonkeyState
+oneRound afterInspect beforeThrow ms = foldl (turn afterInspect beforeThrow) ms (take (length ms) $ iterate (+1) 0 :: [Integer])
 
-runNRounds :: Integer -> MonkeyState -> Integer -> MonkeyState
-runNRounds rounds ms calmFactor
+runNRounds :: Integer -> (Item -> Item) -> (Item -> Item) -> MonkeyState -> MonkeyState
+runNRounds rounds afterInspect beforeThrow ms
   | rounds <= 0 = ms
-  | otherwise = runNRounds (rounds - 1) (oneRound ms calmFactor) calmFactor
+  | otherwise = runNRounds (rounds - 1) afterInspect beforeThrow (oneRound afterInspect beforeThrow ms)
 
-calculateMonkeyBusiness rounds calmFactor ms =
+calculateMonkeyBusiness :: Integer -> (Item -> Item) -> (Item -> Item) -> MonkeyState -> Integer
+calculateMonkeyBusiness rounds afterInspect beforeThrow ms =
   product $ take 2 $ reverse $ List.sort $
   fmap inspections $
-  Map.elems $ runNRounds rounds ms calmFactor
+  Map.elems $ runNRounds rounds afterInspect beforeThrow ms
+
+calmDown :: Item -> Item
+calmDown item = item `div` 3
+
+modMod :: [Monkey] -> Item -> Item
+modMod monkeys i = i `mod` product (fmap (divisibleBy . test) monkeys)
 
 main = do
   monkeysExample <- parseMonkeys <$> readFile "input_e1.txt"
   monkeys <- parseMonkeys <$> readFile "input.txt"
   putStrLn "Part 1"
-  print $ calculateMonkeyBusiness 20 3 (createMonkeyState monkeysExample)
-  print $ calculateMonkeyBusiness 20 3 (createMonkeyState monkeys)
-  putStrLn "\nPart 2" -- Crashes at ~1000 rounds"
-  print $ calculateMonkeyBusiness 100 1 (createMonkeyState monkeys)
+  print $ calculateMonkeyBusiness 20 id calmDown (createMonkeyState monkeysExample)
+  print $ calculateMonkeyBusiness 20 id calmDown (createMonkeyState monkeys)
+  putStrLn "\nPart 2"
+  print $ calculateMonkeyBusiness 10000 (modMod monkeysExample) id (createMonkeyState monkeysExample)
+  print $ calculateMonkeyBusiness 10000 (modMod monkeys) id (createMonkeyState monkeys)
 
