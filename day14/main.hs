@@ -3,6 +3,7 @@ import qualified Data.List.Split as Split
 
 rock = '#'
 sand = 'o'
+sandSource = (500, 0)
 
 type Point = (Int, Int)
 type Path = [Point]
@@ -58,16 +59,16 @@ dropSandR i p cave
   | otherwise = cave
 
 dropSand :: Cave -> Cave
-dropSand = dropSandR 10000 (500, 0)
+dropSand = dropSandR 10000 sandSource
 
 dropSandN :: Int -> Cave -> Cave
 dropSandN n cave
   | n <= 0 = cave
   | otherwise = dropSandN (n - 1) (dropSand cave)
 
-addSandUntilAbyssFlow :: Cave -> Cave
-addSandUntilAbyssFlow cave = let newCave = dropSand cave in
-  if length newCave == length cave then cave else addSandUntilAbyssFlow newCave
+dropSandUntilAbyssFlow :: Cave -> Cave
+dropSandUntilAbyssFlow cave = let newCave = dropSand cave in
+  if length newCave == length cave then cave else dropSandUntilAbyssFlow newCave
 
 getSandPoints cave = fmap fst $ filter (\l -> snd l == sand) $ Map.assocs cave
 
@@ -77,11 +78,30 @@ countSand cave = length $ filter (== sand) $ Map.elems cave
 part1 input = do
   let paths = parsePaths input
   let cave = createCave paths
-  countSand $ addSandUntilAbyssFlow cave
+  countSand $ dropSandUntilAbyssFlow cave
+
+dropSandUntilSourceBlocked :: Cave -> Cave
+dropSandUntilSourceBlocked cave = if Map.member sandSource cave then cave else
+  let newCave = dropSand cave in dropSandUntilSourceBlocked newCave
+
+findLowestPoint :: [Point] -> Point
+findLowestPoint points = foldl (\a b -> if snd a > snd b then a else b) (head points) points
+
+addFloor :: [Path] -> Cave -> Cave
+addFloor paths cave = let lowestPoint = 2 + snd (findLowestPoint (concat paths)) in
+  insertPath cave (expandPath [(-20000, lowestPoint), (20000, lowestPoint)])
+
+part2 input = do
+  let paths = parsePaths input
+  let cave = createCave paths
+  let caveWithFloor = addFloor paths cave
+  countSand $ dropSandUntilSourceBlocked caveWithFloor
 
 main = do
   inputE1 <- lines <$> readFile "input_e1.txt"
   input <- lines <$> readFile "input.txt"
   print $ part1 inputE1
   print $ part1 input
+  print $ part2 inputE1
+  print $ part2 input
 
