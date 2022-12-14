@@ -14,10 +14,11 @@ elemPoint a m =
 charToHeight :: Char -> Int
 charToHeight c = let c2 | c == 'S' = 'a' | c == 'E' = 'z' | otherwise = c in ord c2 - 97
 
-initialDistance :: Char -> Int
-initialDistance c | c == 'S' = 0 | otherwise =  100000000000000
+initialDistance :: Char -> Char -> Int
+initialDistance start c | c == start = 0 | otherwise = 100000000000000
 
-cliffDistance :: Matrix Int -> Point -> Point -> Int
+type DistFunc = Matrix Int -> Point -> Point -> Int
+cliffDistance :: DistFunc
 cliffDistance heightMap from to =
   let fromCliff = uncurry getElem from heightMap in
   let toCliff = uncurry getElem to heightMap in
@@ -37,34 +38,60 @@ unvisitedNeighborsOf visited xmax ymax (x, y) =
   let inBounds = Data.List.filter (\(x, y) -> x >= 1 && y >= 1 && x <= xmax && y <= ymax) n in
   Data.List.filter (`notElem` visited) inBounds
 
-visitNeighbor :: Point -> DState -> Point -> DState
-visitNeighbor u dstate@(dist, path, queue, visited, heightMap) n =
-  let newDistance = uncurry getElem u dist + cliffDistance heightMap u n in
+visitNeighbor :: DistFunc -> Point -> DState -> Point -> DState
+visitNeighbor distFunc u dstate@(dist, path, queue, visited, heightMap) n =
+  let newDistance = uncurry getElem u dist + distFunc heightMap u n in
   if newDistance >= uncurry getElem n dist then dstate else
   (setElem newDistance n dist, setElem u n path, prioInsert (newDistance, n) queue, visited, heightMap)
 
-shortestPathsR :: DState -> DState
-shortestPathsR dstate@(_, _, [], _, _) = dstate
-shortestPathsR dstate@(dist, path, queue, visited, heightMap) =
+shortestPathsR :: DistFunc -> DState -> DState
+shortestPathsR distFunc dstate@(_, _, [], _, _) = dstate
+shortestPathsR distFunc dstate@(dist, path, queue, visited, heightMap) =
   let (_, u):queue2 = queue in
-  if u `elem` visited then shortestPathsR (dist, path, queue2, visited, heightMap) else
+  if u `elem` visited then shortestPathsR distFunc (dist, path, queue2, visited, heightMap) else
   let visited2 = Set.insert u visited in
   let ns = unvisitedNeighborsOf visited (nrows dist) (ncols dist) u in
-  shortestPathsR $ Data.List.foldl (visitNeighbor u) (dist, path, queue2, visited2, heightMap) ns
+  shortestPathsR distFunc $ Data.List.foldl (visitNeighbor distFunc u) (dist, path, queue2, visited2, heightMap) ns
 
 part1 chars =
   let charMatrix = fromLists chars in
   let heightMap = fmap charToHeight charMatrix in
-  let distances = fmap initialDistance charMatrix in
+  let distances = fmap (initialDistance 'S') charMatrix in
   let paths = mapPos const distances in
   let start = elemPoint 'S' chars in
   let end = elemPoint 'E' chars in
-  let (d, _, _, _, _) = shortestPathsR (distances, paths, [(0, start)], Set.empty, heightMap) in
+  let (d, _, _, _, _) = shortestPathsR cliffDistance (distances, paths, [(0, start)], Set.empty, heightMap) in
   uncurry getElem end d
+
+fmapi :: (Int -> a -> b) -> [a] -> [b]
+fmapi f list = snd $ Data.List.foldl (\(i, b) a -> (i+1, b ++ [f i a])) (0, []) list
+
+elemPoints :: Eq a => a -> [[a]] -> [Point]
+elemPoints a m = fmap fst $ Data.List.filter (\(p, c) -> c == a) $ concat $ fmapi (\i row -> fmapi (\j e -> ((i + 1, j + 1), e)) row) m
+
+cliffDistanceReverse :: DistFunc
+cliffDistanceReverse heightMap from to =
+  let fromCliff = uncurry getElem from heightMap in
+  let toCliff = uncurry getElem to heightMap in
+  if toCliff + 1< fromCliff then 100000000000000 else 1
+
+part2 chars =
+  let charMatrix = fromLists chars in
+  let heightMap = fmap charToHeight charMatrix in
+  let distances = fmap (initialDistance 'E') charMatrix in
+  let paths = mapPos const distances in
+  let start = elemPoint 'S' chars in
+  let end = elemPoint 'E' chars in
+  let aPoints = elemPoints 'a' chars in
+  let (d, _, _, _, _) = shortestPathsR cliffDistanceReverse (distances, paths, [(0, end)], Set.empty, heightMap) in
+  let aDistances = sort $ fmap (flip (uncurry getElem) d) aPoints in
+  head aDistances
 
 main = do
   charsE1 <- lines <$> readFile "input_e1.txt"
-  print $ part1 charsE1
   chars <- lines <$> readFile "input.txt"
+  print $ part1 charsE1
   print $ part1 chars
+  print $ part2 charsE1
+  print $ part2 chars
 
