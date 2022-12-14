@@ -66,9 +66,9 @@ dropSandN n cave
   | n <= 0 = cave
   | otherwise = dropSandN (n - 1) (dropSand cave)
 
-dropSandUntilAbyssFlow :: Cave -> Cave
-dropSandUntilAbyssFlow cave = let newCave = dropSand cave in
-  if length newCave == length cave then cave else dropSandUntilAbyssFlow newCave
+dropSandUntilStable :: Cave -> Cave
+dropSandUntilStable cave = let newCave = dropSand cave in
+  if length newCave == length cave then cave else dropSandUntilStable newCave
 
 getSandPoints cave = fmap fst $ filter (\l -> snd l == sand) $ Map.assocs cave
 
@@ -78,11 +78,7 @@ countSand cave = length $ filter (== sand) $ Map.elems cave
 part1 input = do
   let paths = parsePaths input
   let cave = createCave paths
-  countSand $ dropSandUntilAbyssFlow cave
-
-dropSandUntilSourceBlocked :: Cave -> Cave
-dropSandUntilSourceBlocked cave = if Map.member sandSource cave then cave else
-  let newCave = dropSand cave in dropSandUntilSourceBlocked newCave
+  countSand $ dropSandUntilStable cave
 
 findLowestPoint :: [Point] -> Point
 findLowestPoint points = foldl (\a b -> if snd a > snd b then a else b) (head points) points
@@ -95,7 +91,7 @@ part2 input = do
   let paths = parsePaths input
   let cave = createCave paths
   let caveWithFloor = addFloor paths cave
-  countSand $ dropSandUntilSourceBlocked caveWithFloor
+  countSand $ dropSandUntilStable caveWithFloor
 
 main = do
   inputE1 <- lines <$> readFile "input_e1.txt"
