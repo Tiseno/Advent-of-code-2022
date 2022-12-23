@@ -62,7 +62,7 @@ elfRound (elfs, directions) = do
   let newDirections = tail directions ++ [head directions]
   (movedElfs, newDirections)
 
-elfRounds n elfs = Misc.nTimes n elfRound (elfs, [North, South, West, East])
+elfRounds n elfs directions = Misc.nTimes n elfRound (elfs, directions)
 
 big = 10000000000000
 
@@ -71,15 +71,24 @@ findArea elfs = let ((xmin, ymin), (xmax, ymax)) = foldl (\((xmin, ymin), (xmax,
 
 part1 :: Int -> Elfs -> Int
 part1 n elfs = do
-  let (resultingElfs, _) = elfRounds n elfs
+  let (resultingElfs, _) = elfRounds n elfs [North, South, West, East]
   let area = findArea resultingElfs
   area - length elfs
 
+elfRoundsUntilStable n (elfs, directions) =
+  let (newElfs, newDirections) = elfRound (elfs, directions) in
+  if elfs == newElfs then n else elfRoundsUntilStable (n + 1) (newElfs, newDirections)
+
+part2 elfs = elfRoundsUntilStable 1 (elfs, [North, South, West, East])
+
 main = do
-  elfState <- parseElfs . lines <$> readFile "input_e1.txt"
-  print $ part1 10 elfState
-  elfState <- parseElfs . lines <$> readFile "input_e2.txt"
-  print $ part1 10 elfState
+  elfState1 <- parseElfs . lines <$> readFile "input_e1.txt"
+  elfState2 <- parseElfs . lines <$> readFile "input_e2.txt"
   elfState <- parseElfs . lines <$> readFile "input.txt"
+  print $ part1 10 elfState1
+  print $ part1 10 elfState2
   print $ part1 10 elfState
+  print $ part2 elfState1
+  print $ part2 elfState2
+  print $ part2 elfState
 
