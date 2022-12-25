@@ -13,26 +13,26 @@ parseSensorData s = let [sx, sy, bx, by] = fmap (read :: String -> Int) $ filter
 parseSensorDatas :: [String] -> [SensorData]
 parseSensorDatas = fmap parseSensorData
 
-coverAtY y ((xs, ys), (xb, yb)) =
+rangeAtY y ((xs, ys), (xb, yb)) =
   let distanceToB = (abs (xs - xb) + abs (ys - yb)) in
   let distanceToY = abs (ys - y) in
   if distanceToY > distanceToB then Nothing else
-  let coverHalfSize =  distanceToB - distanceToY in
-  Just (xs - abs coverHalfSize, xs + abs coverHalfSize)
+  let rangeHalfSize =  distanceToB - distanceToY in
+  Just (xs - abs rangeHalfSize, xs + abs rangeHalfSize)
 
-combineCovers c1@(l1, r1) c2@(l2, r2) = if r1 < l2 || r2 < l1 then [c1, c2] else [(min l1 l2, max r1 r2)]
+combineRanges c1@(l1, r1) c2@(l2, r2) = if r1 < l2 || r2 < l1 then [c1, c2] else [(min l1 l2, max r1 r2)]
 
-foldlCovers covers [] = covers
-foldlCovers [] (x:xs) = foldlCovers [x] xs
-foldlCovers (prev:covers) (x:xs) = foldlCovers (combineCovers x prev ++ covers) xs
+foldlRanges ranges [] = ranges
+foldlRanges [] (x:xs) = foldlRanges [x] xs
+foldlRanges (prev:ranges) (x:xs) = foldlRanges (combineRanges x prev ++ ranges) xs
 
-coverLength (l, r) = abs (l - r)
+rangeLength (l, r) = abs (l - r)
 
 part1 y sensorData = do
-  let covers = Maybe.mapMaybe (coverAtY y) sensorData
-  let sortedCovers = List.sortBy (\(l1,_) (l2, _) -> compare l1 l2) covers
-  let foldedCovers = foldlCovers [] sortedCovers
-  sum $ fmap coverLength foldedCovers
+  let ranges = Maybe.mapMaybe (rangeAtY y) sensorData
+  let sortedRanges = List.sortBy (\(l1,_) (l2, _) -> compare l1 l2) ranges
+  let foldedRanges = foldlRanges [] sortedRanges
+  sum $ fmap rangeLength foldedRanges
 
 main = do
   sensorDataE1 <- lines <$> readFile "input_e1.txt"
