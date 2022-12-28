@@ -1,4 +1,4 @@
-import qualified Debug.Trace as Trace
+import qualified Debug.Trace     as Trace
 import qualified Data.MultiMap   as MultiMap
 import qualified Data.MultiSet   as MultiSet
 import qualified Data.Set        as Set
@@ -41,15 +41,15 @@ legalMoves :: Blizzards -> Point -> [Point]
 legalMoves blizzards p = filter (MultiMap.notMember blizzards) $ filter positivePoint $ possibleMoves p
 
 movePositions :: Blizzards -> Set.Set Point -> Set.Set Point
-movePositions blizzards positions = Set.fromList $ concatMap (legalMoves blizzards) (positions)
+movePositions blizzards positions = Set.fromList $ concatMap (legalMoves blizzards) positions
 
 bfs :: Point -> Point -> Int -> Blizzards -> Set.Set Point -> (Int, Blizzards)
 bfs end wh n blizzards positions =
+  if end `Set.member` positions || null positions
+  then (n, blizzards) else
   let newBlizzards = moveBlizzards wh blizzards in
   let newPositions = movePositions newBlizzards positions in
-  if end `Set.member` newPositions || null newPositions
-  then (n, newBlizzards)
-  else bfs end wh (n + 1) newBlizzards newPositions
+  bfs end wh (n + 1) newBlizzards newPositions
 
 findEnd :: [[Char]] -> Point
 findEnd m = (length (last m) - 2, length m - 1)
@@ -65,9 +65,21 @@ isBlizzard c = c == 'v' || c == '<' || c == '^' || c == '>' || c == '#'
 createBlizzards :: [[Char]] -> Blizzards
 createBlizzards m = MultiMap.fromList $ catMaybes $ concat $ pointMap (\p e -> if isBlizzard e then Just (p, e) else Nothing) m
 
-part1 m = fst $ bfs (findEnd m) (findWH m) 1 (createBlizzards m) (Set.fromList [(1,0)])
+part1 m = fst $ bfs (findEnd m) (findWH m) 0 (createBlizzards m) (Set.fromList [(1,0)])
+
+part2 m =
+  let start = (1,0) in
+  let end = findEnd m in
+  let wh = findWH m in
+  let b0 = createBlizzards m in
+  let (n1, b1) = bfs end wh 0 b0 (Set.fromList [start]) in
+  let (n2, b2) = bfs start wh n1 b1 (Set.fromList [end]) in
+  let (n3, _) = bfs end wh n2 b2 (Set.fromList [start]) in
+  n3
 
 main = do
   basin <- lines <$> readFile "input.txt"
   mapM_ putStrLn basin
   print $ part1 basin
+  print $ part2 basin
+
