@@ -1,22 +1,73 @@
-type Point = (Int, Int, Int)
-type PrioPoint = (Int, Point)
+import qualified Debug.Trace as Trace
+import qualified Data.MultiMap   as MultiMap
+import qualified Data.MultiSet   as MultiSet
+import qualified Data.Set        as Set
+import qualified Data.List.Index as Index
+import Data.Maybe
 
-pHead :: [PrioPoint] -> (Point, [PrioPoint])
-pHead (x:xs) = (snd x, xs)
+debug n = Trace.traceShow n n
 
-insert :: PrioPoint -> [PrioPoint] -> [PrioPoint]
-insert p [] = [p]
-insert p (x:xs) = if fst p < fst x then p:x:xs else x : insert p xs
+type Point = (Int, Int)
 
-data Matrix a = Matrix [[Char]]
-type TimeLine = [Matrix]
+type Blizzards = MultiMap.MultiMap Point Char
 
+nextBlizzard :: Point -> Char -> Point
+nextBlizzard (x, y) c
+  | c == '#' = (x, y)
+  | c == 'v' = (x, y + 1)
+  | c == '<' = (x - 1, y)
+  | c == '^' = (x, y - 1)
+  | c == '>' = (x + 1, y)
 
---					distance, paths,
-data DState = DState (Matrix, Matrix,
-part1 = id
+wrapBlizzard (xmax, ymax) c (x, y)
+  | c == '#' = (x, y)
+  | x == 0 = (xmax - 2, y)
+  | y == 0 = (x, ymax - 2)
+  | x == xmax - 1 = (1, y)
+  | y == ymax - 1 = (x, 1)
+  | otherwise = (x, y)
+
+moveBlizzard wh p c = wrapBlizzard wh c $ nextBlizzard p c
+
+moveBlizzards :: Point -> Blizzards -> Blizzards
+moveBlizzards wh = MultiMap.foldlWithKey (\newBlizzards p b -> MultiMap.insert (moveBlizzard wh p b) b newBlizzards) MultiMap.empty
+
+positivePoint p = fst p >= 0 && snd p >= 0
+
+possibleMoves :: Point -> [Point]
+possibleMoves (x, y) = [(x, y), (x + 1, y), (x, y + 1), (x - 1, y), (x, y - 1)]
+
+legalMoves :: Blizzards -> Point -> [Point]
+legalMoves blizzards p = filter (MultiMap.notMember blizzards) $ filter positivePoint $ possibleMoves p
+
+movePositions :: Blizzards -> Set.Set Point -> Set.Set Point
+movePositions blizzards positions = Set.fromList $ concatMap (legalMoves blizzards) (positions)
+
+bfs :: Point -> Point -> Int -> Blizzards -> Set.Set Point -> (Int, Blizzards)
+bfs end wh n blizzards positions =
+  let newBlizzards = moveBlizzards wh blizzards in
+  let newPositions = movePositions newBlizzards positions in
+  if end `Set.member` newPositions || null newPositions
+  then (n, newBlizzards)
+  else bfs end wh (n + 1) newBlizzards newPositions
+
+findEnd :: [[Char]] -> Point
+findEnd m = (length (last m) - 2, length m - 1)
+
+findWH :: [[Char]] -> Point
+findWH m = (length $ head m, length m)
+
+pointMap :: (Point -> a -> b) -> [[a]] -> [[b]]
+pointMap fn = Index.imap (\y row -> Index.imap (\x e -> fn (x, y) e) row)
+
+isBlizzard c = c == 'v' || c == '<' || c == '^' || c == '>' || c == '#'
+
+createBlizzards :: [[Char]] -> Blizzards
+createBlizzards m = MultiMap.fromList $ catMaybes $ concat $ pointMap (\p e -> if isBlizzard e then Just (p, e) else Nothing) m
+
+part1 m = fst $ bfs (findEnd m) (findWH m) 1 (createBlizzards m) (Set.fromList [(1,0)])
 
 main = do
-  initialState <- lines <$> readFile "input.txt"
-  mapM_ putStrLn initialState
-  print $ part1 [initialState]
+  basin <- lines <$> readFile "input.txt"
+  mapM_ putStrLn basin
+  print $ part1 basin
