@@ -44,11 +44,7 @@ allDistances nodes = foldl f init $ tripleExplode $ List.nub $ fmap fst nodes
                concatMap (\(n, _) -> fmap ((n, ) . fst) nodes) nodes)
        in self `Map.union` connections `Map.union` all
     tripleExplode :: [Valve] -> [(Valve, Valve, Valve)]
-    tripleExplode names = do
-      name1 <- names
-      name2 <- names
-      name3 <- names
-      pure (name1, name2, name3)
+    tripleExplode n = [(k, i, j) | k <- n, i <- n, j <- n]
     f :: Distances -> (Valve, Valve, Valve) -> Distances
     f g (k, i, j) =
       let existingPath = g Map.! (i, j)
