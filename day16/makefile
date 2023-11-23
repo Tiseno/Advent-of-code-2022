@@ -1,0 +1,2 @@
+default:
+	runhaskell main.hs
