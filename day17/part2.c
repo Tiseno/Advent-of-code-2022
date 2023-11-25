@@ -95,7 +95,7 @@ int main() {
   FILE *file = fopen("input.txt", "rb");
 
   char chamber[CHAMBER_HEIGHT] = {0};
-  struct Pattern chamber_patterns[MAX_PATTERNS] = {0};
+  struct Pattern patterns[MAX_PATTERNS] = {0};
   char jet_pattern[JET_PATTERN_LENGTH] = {0};
 
   int jet_bytes = fread(jet_pattern, 1, JET_PATTERN_LENGTH - 1, file);
@@ -104,7 +104,7 @@ int main() {
   int highest = 0;
   long long extra_cycle_height = 0;
 
-  int found_pattern = 0;
+  int found_pattern = false;
 
   int jet_index = 0;
   long long r = 0;
@@ -116,42 +116,34 @@ int main() {
 
     int x = 2;
     int y = highest + 3;
-    if (y > CHAMBER_HEIGHT) {
-      printf("Warning: out of bounds!\n");
-      return 1;
-    }
 
     while (true) {
-      int nx = x;
-      int ny = y;
+      int nx;
 
-      if (jet_pattern[jet_index] == '<') {
-        nx--;
-      } else {
-        nx++;
-      }
+      bool left_push = jet_pattern[jet_index] == '<';
       jet_index = (jet_index + 1) % jet_pattern_length;
 
-      if (nx < 0) {
-        nx = 0;
-      } else if (nx + shape_width > 7) {
-        nx = x;
-      } else if (shape_overlap(chamber, shape, nx, ny)) {
-        nx = x;
+      if (left_push) {
+        nx = (x == 0) ? x : x - 1;
+      } else {
+        nx = (x + shape_width == 7) ? x : x + 1;
       }
 
-      x = nx;
-      ny = ny - 1;
-      if (ny < 0 || shape_overlap(chamber, shape, nx, ny)) {
-        break;
+      if (!shape_overlap(chamber, shape, nx, y)) {
+        x = nx;
       }
-      y = ny;
+
+      if (y == 0 || shape_overlap(chamber, shape, x, y - 1)) {
+        break;
+      } else {
+        y = y - 1;
+      }
     }
 
     settle(chamber, shape, x, y);
-    highest = highest > y + shape_height ? highest : y + shape_height;
+    highest = (highest > y + shape_height) ? highest : y + shape_height;
 
-    if (found_pattern == 0) {
+    if (!found_pattern) {
       struct Pattern current_pattern = {.r = r,
                                         .highest = highest,
                                         .shape_index = shape_index,
@@ -159,22 +151,21 @@ int main() {
       for (int i = 0; i < TOP_SIZE && highest - i >= 0; ++i) {
         current_pattern.tower_top[i] = chamber[highest - i];
       }
-      chamber_patterns[r] = current_pattern;
+      patterns[r] = current_pattern;
 
-      for (int cp = 0; cp < r; ++cp) {
-        if (chamber_patterns[cp].shape_index == current_pattern.shape_index &&
-            chamber_patterns[cp].jet_index == current_pattern.jet_index) {
+      for (int i = 0; i < r; ++i) {
+        if (patterns[i].shape_index == current_pattern.shape_index &&
+            patterns[i].jet_index == current_pattern.jet_index) {
           bool same = true;
           for (int t = 0; t < TOP_SIZE; ++t) {
-            if (chamber_patterns[cp].tower_top[t] !=
-                current_pattern.tower_top[t]) {
+            if (patterns[i].tower_top[t] != current_pattern.tower_top[t]) {
               same = false;
             }
           }
           if (same) {
-            found_pattern = 1;
-            long long cycle_length = r - chamber_patterns[cp].r;
-            int height_diff = highest - chamber_patterns[cp].highest;
+            found_pattern = true;
+            long long cycle_length = r - patterns[i].r;
+            int height_diff = highest - patterns[i].highest;
             long long needed_cycles = (N_ROCKS_TO_CALCULATE - r) / cycle_length;
             r += needed_cycles * cycle_length;
             extra_cycle_height = needed_cycles * height_diff;
@@ -186,7 +177,7 @@ int main() {
   }
 
   printf("%lld rocks have fallen\n", r);
-  printf("Simulated tower height %d\n", highest);
+  printf("Simulated %d rocks\n", highest);
   printf("Cycles height %lld\n", extra_cycle_height);
   printf("Total height %lld\n", highest + extra_cycle_height);
   return 0;
