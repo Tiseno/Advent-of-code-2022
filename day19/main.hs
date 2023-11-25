@@ -78,7 +78,7 @@ newConstraints :: RobotConstraints -> BluePrint -> State -> RobotConstraints
 newConstraints rc bp s =
   RobotConstraints
     { oreForbidden = oreForbidden rc || oreRobotOreCost bp <= currentOre s
-    , clayForbidden = clayForbidden rc -- || clayRobotOreCost bp <= currentOre s -- NOTE sometimes we want to wait with building clay robots. When do we know we do not want them anymore?
+    , clayForbidden = clayForbidden rc || clayRobotOreCost bp <= currentOre s -- NOTE this one did not work for example input
     , obsForbidden =
         obsForbidden rc ||
         (obsRobotOreCost bp <= currentOre s &&
@@ -115,47 +115,68 @@ buildOre bp s =
     , currentOre = currentOre s - oreRobotOreCost bp
     }
 
+theoreticalMax :: State -> Int -> Int
+theoreticalMax s step =
+  currentGeo s + geoRobots s * (step - 1) + (step * (step - 1)) `div` 2
+
 -- Heuristics
 -- 1. Only allow building a number of robots corresponding to the biggest cost for a robot of that resource, when we have the max of all robots we can build any robot we want every step
 -- 2. If we decide to not build any robots at a step, but we have enough resources to build some type of robot, dissallow building any more of that robot type in the following steps, as building it at a later time is just a worse decision
---    * This did not work as expected, we should build geode robots before clay robots so sometimes it is beneficial to build wait building a clay bot and building a geode robot first
-findMaxGeode :: Int -> State -> BluePrint -> (Int, State)
+-- 3. DFS instead of BFS, passing the max forward to all branches to cut it short whenever it is not able to meet the already found maximum
+findMaxGeode :: Int -> State -> BluePrint -> Int
 findMaxGeode step s bp =
-  findMaxGeodeR (RobotConstraints False False False) s step
+  findMaxGeodeR (RobotConstraints False False False) s step 0
   where
-    findMaxGeodeR :: RobotConstraints -> State -> Int -> (Int, State)
-    findMaxGeodeR _ s 0 = (currentGeo s, s)
-    findMaxGeodeR rc s0 step0 =
-      let step = step0 - 1
-          s = s0
-          s' = produce s
-          choices =
-            [ if geoRobotOreCost bp <= currentOre s &&
-                 geoRobotObsCost bp <= currentObs s
-                then findMaxGeodeR rc (buildGeo bp s') step
-                else (0, s)
-            , if obsRobotOreCost bp <= currentOre s &&
-                 obsRobotClayCost bp <= currentClay s &&
-                 obsRobots s < obsRobotMax bp && not (obsForbidden rc)
-                then findMaxGeodeR rc (buildObs bp s') step
-                else (0, s)
-            , if clayRobotOreCost bp <= currentOre s &&
-                 clayRobots s < clayRobotMax bp && not (clayForbidden rc)
-                then findMaxGeodeR rc (buildClay bp s') step
-                else (0, s)
-            , if oreRobotOreCost bp <= currentOre s &&
-                 oreRobots s < oreRobotMax bp && not (oreForbidden rc)
-                then findMaxGeodeR rc (buildOre bp s') step
-                else (0, s)
-            , findMaxGeodeR (newConstraints rc bp s) s' step
-            ]
-       in foldl
-            (\(m0, s0) (m1, s1) ->
-               if m0 > m1
-                 then (m0, s0)
-                 else (m1, s1))
-            (0, s)
-            choices
+    findMaxGeodeR :: RobotConstraints -> State -> Int -> Int -> Int
+    findMaxGeodeR _ s 0 _ = currentGeo s
+    findMaxGeodeR rc s0 step0 maxFound =
+      if theoreticalMax s0 step0 < maxFound
+        then maxFound
+        else let step = step0 - 1
+                 s = s0
+                 s' = produce s
+                 chooseGeoResult =
+                   if geoRobotOreCost bp <= currentOre s &&
+                      geoRobotObsCost bp <= currentObs s
+                     then findMaxGeodeR rc (buildGeo bp s') step 0
+                     else 0
+                 chooseObsResult =
+                   if obsRobotOreCost bp <= currentOre s &&
+                      obsRobotClayCost bp <= currentClay s &&
+                      obsRobots s < obsRobotMax bp && not (obsForbidden rc)
+                     then findMaxGeodeR rc (buildObs bp s') step chooseGeoResult
+                     else 0
+                 chooseClayResult =
+                   if clayRobotOreCost bp <= currentOre s &&
+                      clayRobots s < clayRobotMax bp && not (clayForbidden rc)
+                     then findMaxGeodeR
+                            rc
+                            (buildClay bp s')
+                            step
+                            chooseObsResult
+                     else 0
+                 chooseOreResult =
+                   if oreRobotOreCost bp <= currentOre s &&
+                      oreRobots s < oreRobotMax bp && not (oreForbidden rc)
+                     then findMaxGeodeR
+                            rc
+                            (buildOre bp s')
+                            step
+                            chooseClayResult
+                     else 0
+                 waitResult =
+                   findMaxGeodeR
+                     (newConstraints rc bp s)
+                     s'
+                     step
+                     chooseOreResult
+              in maximum
+                   [ chooseGeoResult
+                   , chooseObsResult
+                   , chooseClayResult
+                   , chooseOreResult
+                   , waitResult
+                   ]
 
 initialState =
   State
@@ -173,12 +194,16 @@ part1 input = do
   let bluePrints = parseBluePrints input
   let results =
         fmap (Bifunctor.second (findMaxGeode 24 initialState)) bluePrints
-  fmap (\(i, (m, _)) -> i * m) results
+  sum $ fmap (uncurry (*)) results
+
+part2 input = do
+  let bluePrints = parseBluePrints input
+  let results = fmap (findMaxGeode 32 initialState . snd) (take 3 bluePrints)
+  product results
 
 main :: IO ()
 main = do
   exampleInput <- readFile "input.txt"
   -- exampleInput <- readFile "input.example.txt"
-  let qualities = part1 exampleInput
-  mapM_ print qualities
-  print $ sum qualities
+  print $ part1 exampleInput
+  print $ part2 exampleInput
