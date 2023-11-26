@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define INPUTE1 "input_e1.txt"
+#define INPUTE1 "input.example.txt"
 #define INPUT "input.txt"
 
 struct List {
@@ -96,6 +96,31 @@ int grooveSum(N* list) {
 	return c1000->value + c2000->value + c3000->value;
 }
 
+struct PointerList {
+	struct List* value;
+	struct PointerList * next;
+};
+
+#define P struct PointerList
+
+P* makePtr(N* mix) {
+	P* a = malloc(sizeof(P));
+	a->value = mix;
+	a->next = NULL;
+	return a;
+}
+
+void printListP(P* list) {
+	if (list == NULL) {
+		printf("NULL list when printing.");
+		return;
+	}
+	while (list != NULL) {
+        printf("%p\n", list->value);
+		list = list->next;
+	}
+}
+
 int main() {
     FILE * file = fopen(INPUT, "r");
     char * line = NULL;
@@ -109,21 +134,31 @@ int main() {
 	N* first = NULL;
 	N* last = NULL;
 
+	P* firstp = NULL;
+	P* lastp = NULL;
+
     while ((read = getline(&line, &length, file)) != -1) {
 		if (first == NULL) {
 			first = makeNode(atoi(line), NULL, NULL);
 			first->prev = first;
 			first->next = first;
 			last = first;
+
+			firstp = makePtr(first);
+			lastp = firstp;
 		} else {
 			N* n = makeNode(atoi(line), last, first);
 			last->next = n;
 			first->prev = n;
 			last = n;
+
+			lastp->next = makePtr(n);
+			lastp = lastp->next;
 		}
     }
 
 	// printList(first);
+	// printListP(firstp);
 
 	N* i = first;
 	do {
